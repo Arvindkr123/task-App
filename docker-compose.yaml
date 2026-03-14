@@ -1,0 +1,20 @@
+version: "v2.38.2-desktop.1"
+
+services:
+  task-app-mongo:
+    image: mongodb/mongodb-community-server:latest
+    container_name: task-app-mongo
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  user-service:
+    build: ./user-service
+    ports:
+      - "3001:3001"
+    depends_on:
+      - task-app-mongo
+
+volumes:
+  mongo_data:
