@@ -1,5 +1,6 @@
 const express = require('express')
 const mongoose = require('mongoose')
+const amqp = require("amqplib")
 
 const app = express()
 
@@ -33,11 +34,47 @@ const taskSchema = new mongoose.Schema({
 // Model
 const TaskModel = mongoose.model("Task", taskSchema)
 
+let channel, connection;
+
+async function connectRabbitMQWithRetry(retries = 5, delay = 3000) {
+  while (retries > 0) {
+    try {
+      connection = await amqp.connect("amqp://rabbitmq");
+      channel = await connection.createChannel();
+
+      await channel.assertQueue("task_created", { durable: true });
+
+      console.log("✅ Connected to RabbitMQ");
+      return channel;
+    } catch (error) {
+      console.log("❌ RabbitMQ connection error:", error.message);
+      retries--;
+
+      if (retries === 0) {
+        console.log("🚨 Max retries reached. Exiting...");
+        process.exit(1);
+      }
+
+      console.log(`Retrying in ${delay / 1000}s... (${retries} retries left)`);
+
+      await new Promise(res => setTimeout(res, delay));
+    }
+  }
+}
+
 // Create user
 app.post("/tasks", async (req, res) => {
     try {
         const newTask = new TaskModel(req.body)
         const taskSaved = await newTask.save()
+
+        const message = { taskId: taskSaved._id, userId: taskSaved.userId, title: taskSaved.title }
+        if(!channel){
+            return res.status(503).json({
+                error:"Rabbit MQ not connected"
+            })
+        }
+        channel.sendToQueue("task_created", Buffer.from(JSON.stringify(message)))
 
         res.status(201).json({
             message: "Task created successfully",
@@ -77,6 +114,7 @@ mongoose.connect("mongodb://task-app-mongo:27017/users")
 
     app.listen(3002, () => {
         console.log("Server running on port 3002")
+        connectRabbitMQWithRetry()
     })
 })
 .catch(err => console.log(err))
