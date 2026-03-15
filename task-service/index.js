@@ -7,45 +7,57 @@ app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
 // Schema
-const userSchema = new mongoose.Schema({
+const taskSchema = new mongoose.Schema({
     name: {
         type: String,
         required: true
     },
-    email: {
+    description: {
         type: String,
         required: true
+    },
+    title: {
+        type: String,
+        required: true
+    },
+    userId:{
+        type:String,
+        required:true
+    },
+    createdAt:{
+        type:Date,
+        default:Date.now
     }
 })
 
 // Model
-const User = mongoose.model("User", userSchema)
+const TaskModel = mongoose.model("Task", taskSchema)
 
 // Create user
-app.post("/users", async (req, res) => {
+app.post("/tasks", async (req, res) => {
     try {
-        const newUser = new User(req.body)
-        const savedUser = await newUser.save()
+        const newTask = new TaskModel(req.body)
+        const taskSaved = await newTask.save()
 
         res.status(201).json({
-            message: "User created successfully",
-            user: savedUser
+            message: "Task created successfully",
+            user: taskSaved
         })
 
     } catch (error) {
         res.status(500).json({
-            message: "Error creating user",
+            message: "Error creating task",
             error: error.message
         })
     }
 })
-app.get("/users", async (req, res) => {
+app.get("/tasks", async (req, res) => {
     try {
-        const users = await User.find({})
-        res.status(200).json(users)
+        const tasks = await TaskModel.find({})
+        res.status(200).json(tasks)
     } catch (error) {
         res.status(500).json({
-            message: "Error getting users",
+            message: "Error getting tasks",
             error: error.message
         })
     }
@@ -63,8 +75,8 @@ mongoose.connect("mongodb://task-app-mongo:27017/users")
 .then(() => {
     console.log("Database connected")
 
-    app.listen(3001, () => {
-        console.log("Server running on port 3001")
+    app.listen(3002, () => {
+        console.log("Server running on port 3002")
     })
 })
 .catch(err => console.log(err))
